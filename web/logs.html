@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PetBot Logs</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+    <style>
+        pre {
+            height: 60vh;
+            overflow: auto;
+            background: #111;
+            color: #0f0;
+            padding: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>📜 Logs</h1>
+        <nav><a href="/">Home</a></nav>
+    </header>
+    <main>
+        <pre id="log"></pre>
+    </main>
+    <script>
+        let since = 0;
+        async function poll() {
+            try {
+                const r = await fetch(`/api/log?since=${since}`);
+                const a = await r.json();
+                if (a.length) {
+                    const pre = document.getElementById('log');
+                    a.forEach(x => { pre.textContent += `[#${x.seq}] ${x.line}\n`; since = x.seq; });
+                    pre.scrollTop = pre.scrollHeight;
+                }
+            } catch (e) {/* ignore */ }
+            setTimeout(poll, 1000);
+        }
+        poll();
+    </script>
+</body>
+
+</html>

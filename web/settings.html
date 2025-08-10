@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wi‑Fi Settings</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+</head>
+
+<body>
+    <header>
+        <h1>🔧 Wi‑Fi Settings</h1>
+        <nav><a href="/">Home</a></nav>
+    </header>
+    <main>
+        <section>
+            <h2>Scan & Connect</h2>
+            <button id="scan">Scan</button>
+            <ul id="aps"></ul>
+        </section>
+
+        <section>
+            <h2>Saved Networks</h2>
+            <ul id="saved"></ul>
+        </section>
+
+        <section>
+            <h2>Manual Add</h2>
+            <form id="add">
+                <input required placeholder="SSID" id="ssid" maxlength="32" />
+                <input placeholder="Password" id="pass" maxlength="64" />
+                <button>Add / Update</button>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        async function refreshSaved() {
+            const r = await fetch('/api/wifi/saved');
+            const a = await r.json();
+            const ul = document.getElementById('saved'); ul.innerHTML = '';
+            a.forEach(x => {
+                const li = document.createElement('li');
+                li.textContent = x.ssid + (x.hasPass ? ' (saved)' : '');
+                const del = document.createElement('button'); del.textContent = 'Delete'; del.onclick = async () => { await fetch('/api/wifi/delete?ssid=' + encodeURIComponent(x.ssid), { method: 'DELETE' }); refreshSaved(); };
+                li.appendChild(del); ul.appendChild(li);
+            });
+        }
+
+        document.getElementById('scan').onclick = async () => {
+            const r = await fetch('/api/wifi/scan');
+            const aps = await r.json();
+            const ul = document.getElementById('aps'); ul.innerHTML = '';
+            aps.sort((a, b) => b.rssi - a.rssi);
+            aps.forEach(ap => {
+                const li = document.createElement('li');
+                li.innerHTML = `<strong>${ap.ssid}</strong> RSSI ${ap.rssi} Auth ${ap.auth}`;
+                const btn = document.createElement('button'); btn.textContent = 'Save';
+                btn.onclick = async () => {
+                    const pass = prompt('Password for ' + ap.ssid + ' (leave empty if open)') || '';
+                    await fetch('/api/wifi/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ssid: ap.ssid, password: pass }) });
+                    refreshSaved();
+                };
+                li.appendChild(btn); ul.appendChild(li);
+            });
+        };
+
+        document.getElementById('add').onsubmit = async (e) => {
+            e.preventDefault();
+            const ssid = document.getElementById('ssid').value.trim();
+            const password = document.getElementById('pass').value;
+            await fetch('/api/wifi/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ssid, password }) });
+            refreshSaved();
+            alert('Saved');
+        };
+
+        refreshSaved();
+    </script>
+</body>
+
+</html>

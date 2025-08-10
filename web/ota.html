@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PetBot OTA</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+</head>
+
+<body>
+    <header>
+        <h1>⬆️ OTA Update</h1>
+        <nav><a href="/">Home</a></nav>
+    </header>
+    <main>
+        <p>Select a firmware <code>.bin</code> compiled for ESP32‑S3.</p>
+        <input type="file" id="file" accept=".bin" />
+        <button id="upload">Upload</button>
+        <p id="msg"></p>
+    </main>
+    <script>
+        document.getElementById('upload').onclick = async () => {
+            const f = document.getElementById('file').files[0];
+            if (!f) return alert('Pick a .bin file');
+            const r = await fetch('/api/ota/upload', { method: 'POST', body: await f.arrayBuffer() });
+            document.getElementById('msg').textContent = await r.text();
+        };
+    </script>
+</body>
+
+</html>

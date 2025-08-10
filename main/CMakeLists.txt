@@ -1,8 +1,8 @@
 idf_component_register(
-    SRCS "main.cpp"
+    SRCS "main.c"
     INCLUDE_DIRS ""
     REQUIRES 
         imu
-        wifi_portal
+        wifi
         arduino
 )
