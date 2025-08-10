@@ -3,5 +3,6 @@ idf_component_register(
     INCLUDE_DIRS ""
     REQUIRES 
         imu
+        wifi_portal
         arduino
 )
