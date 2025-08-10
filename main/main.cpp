@@ -1,30 +1,29 @@
-#include <stdio.h>
+#include "Arduino.h"
 #include "esp_log.h"
-#include "wifi_portal.h"
+#include "imu.h"
 
-extern "C" void app_main(void)
+extern "C" void app_main()
 {
-    // Optional: allow factory reset by holding a button at boot (pseudo-code)
-    // if (gpio_get_level(RESET_PIN) == 0) wifi_portal_erase_credentials();
+    initArduino();
+    pinMode(4, OUTPUT);
+    digitalWrite(4, HIGH);
 
-    // Optional: tweak behavior
-    wifi_portal_set_sta_retry_limit(5);
-    wifi_portal_set_ap_ssid_prefix("Petbot");
-    // wifi_portal_set_ap_password("petbot-setup"); // set a password for the portal AP
-
-    bool ok = wifi_portal_start(); // blocks until connected OR portal started and then connected
-    if (ok)
-    {
-        esp_ip4_addr_t ip;
-        if (wifi_portal_get_sta_ip(&ip))
-        {
-            ESP_LOGI("APP", "Connected! IP: " IPSTR, IP2STR(&ip));
-        }
-    }
+    if (imu_init() == ESP_OK)
+        ESP_LOGI("MAIN", "IMU initialized");
     else
-    {
-        ESP_LOGE("APP", "Unexpected: portal ended without connection");
-    }
+        ESP_LOGE("MAIN", "IMU init failed");
 
-    // Start the rest of your app here (HTTP API, MQTT, eyes, etc.)
+    while (1)
+    {
+        imu_data_t data;
+        if (imu_read_data(&data) == ESP_OK)
+        {
+            ESP_LOGI("MAIN", "Accel: x=%.2f y=%.2f z=%.2f m/s²",
+                     data.accelerometer.x, data.accelerometer.y, data.accelerometer.z);
+            ESP_LOGI("MAIN", "Gyro: x=%.2f y=%.2f z=%.2f dps",
+                     data.gyroscope.x, data.gyroscope.y, data.gyroscope.z);
+        }
+        delay(500);
+    }
 }
+
