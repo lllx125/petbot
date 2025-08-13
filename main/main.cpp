@@ -27,92 +27,55 @@
 //     }
 // }
 
-#include <string.h>
+#include <esp_system.h>
+#include <nvs_flash.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_system.h"
-#include "esp_event.h"
 #include "esp_log.h"
-#include "nvs_flash.h"
-#include "esp_netif.h"
-#include "esp_wifi.h"
-#include "esp_camera.h"
 #include "camera.h"
-#include "esp_http_server.h"
+#include "connect_wifi.h"
 
-static const char *TAG = "main";
+static const char *TAG = "MAIN";
 
-#define WIFI_SSID      "ASUS"
-#define WIFI_PASS      "5105566208"
-
-static void start_camera_server();
-
-// Wi-Fi event handler
-static void wifi_event_handler(void* arg, esp_event_base_t event_base,
-                               int32_t event_id, void* event_data)
+extern "C" void app_main()
 {
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-        esp_wifi_connect();
-    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-        ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
-        ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&event->ip_info.ip));
-        start_camera_server();
-        ESP_LOGI(TAG, "Camera Ready! Use 'http://%s' to connect",
-                 ip4addr_ntoa(&event->ip_info.ip));
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        esp_wifi_connect();
-    }
-}
+    esp_err_t err;
 
-static void wifi_init_sta(void)
-{
-    esp_netif_init();
-    esp_event_loop_create_default();
-    esp_netif_create_default_wifi_sta();
+    ESP_LOGI(TAG, "Starting application");
 
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    esp_wifi_init(&cfg);
-
-    esp_event_handler_instance_t instance_any_id;
-    esp_event_handler_instance_t instance_got_ip;
-    esp_event_handler_instance_register(WIFI_EVENT,
-                                        ESP_EVENT_ANY_ID,
-                                        &wifi_event_handler,
-                                        NULL,
-                                        &instance_any_id);
-    esp_event_handler_instance_register(IP_EVENT,
-                                        IP_EVENT_STA_GOT_IP,
-                                        &wifi_event_handler,
-                                        NULL,
-                                        &instance_got_ip);
-
-    wifi_config_t wifi_config = {};
-    strcpy((char*)wifi_config.sta.ssid, WIFI_SSID);
-    strcpy((char*)wifi_config.sta.password, WIFI_PASS);
-
-    esp_wifi_set_mode(WIFI_MODE_STA);
-    esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
-    esp_wifi_start();
-}
-
-extern "C" void app_main(void)
-{
+    // Initialize NVS
     esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    {
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
     }
-    ESP_ERROR_CHECK(ret);
 
-    ESP_ERROR_CHECK(init_camera());
-    wifi_init_sta();
+    ESP_LOGI(TAG, "Connecting to WiFi");
+    connect_wifi();
+
+    if (wifi_connect_status)
+    {
+        ESP_LOGI(TAG, "WiFi connected, initializing camera");
+        err = camera_init();
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "Camera init failed: %s", esp_err_to_name(err));
+            return;
+        }
+        
+        ESP_LOGI(TAG, "Starting camera web server");
+        camera_start_server();
+        ESP_LOGI(TAG, "ESP32 CAM Web Server is up and running");
+        
+        // Take a picture every 5 seconds for testing
+        while (1) {
+            camera_take_picture();
+            vTaskDelay(pdMS_TO_TICKS(5000));
+        }
+    }
+    else
+    {
+        ESP_LOGE(TAG, "Failed to connect to Wi-Fi, check your network credentials");
+    }
 }
-
-// --- MJPEG Stream Handler ---
-#define PART_BOUNDARY "123456789000000000000987654321"
-static const char* _STREAM_CONTENT_TYPE =
-    "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
-static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
-static const char* _STREAM_PART =
-    "Content-Type: im
-
