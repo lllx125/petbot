@@ -92,21 +92,18 @@ void init_camera(void) {
     config.pin_pwdn = PWDN_GPIO_NUM;
     config.pin_reset = RESET_GPIO_NUM;
     config.xclk_freq_hz = 10000000;
-    config.frame_size = FRAMESIZE_SVGA;
+    config.frame_size = FRAMESIZE_96X96; // 320×240
+    config.jpeg_quality = 30; // lower quality, faster, to increase, make 15 or 10
     config.pixel_format = PIXFORMAT_JPEG;
     config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
     config.fb_location = CAMERA_FB_IN_PSRAM;
-    config.jpeg_quality = 12;
     config.fb_count = 2;
 
-    if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) > 0) {
-        config.jpeg_quality = 10;
-        config.fb_count = 2;
-        config.grab_mode = CAMERA_GRAB_LATEST;
-    } else {
-        config.fb_count = 1;
-        config.fb_location = CAMERA_FB_IN_DRAM;
-    }
+    config.jpeg_quality = 10;
+    config.fb_count = 2;
+    config.grab_mode = CAMERA_GRAB_LATEST;
+
+
 
     ESP_ERROR_CHECK(esp_camera_init(&config));
     sensor_t * s = esp_camera_sensor_get();
