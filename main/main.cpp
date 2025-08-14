@@ -36,8 +36,9 @@
 
 static const char *TAG = "main";
 
-#define WIFI_SSID      "ASUS"
-#define WIFI_PASS      "5105566208"
+#define WIFI_SSID      "ASUS" // Replace with your Wi-Fi SSID
+#define WIFI_PASS      "5105566208" // Replace with your Wi-Fi password
+
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data) {

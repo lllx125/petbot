@@ -1,7 +1,6 @@
 ## IDF Component Manager Manifest File
 dependencies:
   ## Required IDF version
-  esp32-camera: "^2.0.0"
   idf:
     version: '>=4.1.0'
   # # Put list of dependencies here

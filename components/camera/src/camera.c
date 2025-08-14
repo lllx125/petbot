@@ -49,7 +49,6 @@ static esp_err_t stream_handler(httpd_req_t *req) {
 /**
  * Initializes the HTTP server and registers the stream handler.
  * It should start serving MJPEG stream from the camera.
- * Usable by main
  */
 void start_camera_server(void) {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -69,7 +68,7 @@ void start_camera_server(void) {
 
 
 /**
- * Initialize the camera hardware with the specified configuration.
+ * Initialize the camera hardware with the specified configuration (aka ports).
  */
 void init_camera(void) {
     camera_config_t config;
