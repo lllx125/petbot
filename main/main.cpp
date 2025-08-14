@@ -99,24 +99,76 @@ for camera
 /*
 for microphone
 */
+// #include <stdio.h>
+// #include "microphone.h"
+// #include "esp_log.h"
+
+// extern "C" void app_main(void)
+// {
+//     esp_err_t ret = microphone_init();
+//     if (ret != ESP_OK) {
+//         ESP_LOGE("MAIN", "Microphone init failed: %s", esp_err_to_name(ret));
+//         return;
+//     }
+
+//     int16_t buffer[256];
+
+//     while (1) {
+//         size_t samples = microphone_read(buffer, 256);
+//         for (size_t i = 0; i < samples; i++) {
+//             printf("%d\n", buffer[i]); // One value per line
+//         }
+//     }
+// }
+
+/*
+for speaker
+*/
 #include <stdio.h>
-#include "microphone.h"
+#include <math.h>
+#include "speaker.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+#define SAMPLE_RATE 16000
+#define NOTE_DURATION_MS 300
+#define AMPLITUDE 5000
+
+// C major scale frequencies (Hz): C4, D4, E4, F4, G4, A4, B4, C5
+const float scale_freqs[] = {261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25};
+#define NUM_NOTES (sizeof(scale_freqs)/sizeof(scale_freqs[0]))
+
+// Generate a sine wave for a note
+void generate_note(int16_t* buffer, size_t num_samples, float freq) {
+    for (size_t i = 0; i < num_samples; i++) {
+        buffer[i] = (int16_t)(AMPLITUDE * sinf(2 * M_PI * freq * i / SAMPLE_RATE));
+    }
+}
 
 extern "C" void app_main(void)
 {
-    esp_err_t ret = microphone_init();
-    if (ret != ESP_OK) {
-        ESP_LOGE("MAIN", "Microphone init failed: %s", esp_err_to_name(ret));
+    // Initialize speaker
+    speaker_config_t config = {
+        .sample_rate = SAMPLE_RATE,
+        .bits_per_sample = 16,
+        .channel_format = 1
+    };
+
+    if (speaker_init(&config) != ESP_OK) {
+        ESP_LOGE("MAIN", "Speaker init failed");
         return;
     }
 
-    int16_t buffer[256];
+    // Buffer for one note
+    size_t num_samples = SAMPLE_RATE * NOTE_DURATION_MS / 1000;
+    int16_t* buffer = (int16_t*)heap_caps_malloc(num_samples * sizeof(int16_t), MALLOC_CAP_DMA);
 
-    while (1) {
-        size_t samples = microphone_read(buffer, 256);
-        for (size_t i = 0; i < samples; i++) {
-            printf("%d\n", buffer[i]); // One value per line
-        }
+    ESP_LOGI("MAIN", "Starting C major scale loop...");
+
+    for (int n = 0; n < NUM_NOTES; n++) {
+        generate_note(buffer, num_samples, scale_freqs[n]);
+        speaker_play(buffer, num_samples);
+        vTaskDelay(pdMS_TO_TICKS(50));  // small gap between notes
     }
 }
