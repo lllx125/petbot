@@ -15,11 +15,6 @@ static const char *TAG = "MICROPHONE";
 #define MIC_I2S_SD      48   // DOUT from mic
 #define MIC_I2S_SCK     21   // BCLK
 
-/**
- * Initialize the I2S driver for the INMP441 microphone.
- * 
- * @return ESP_OK on success, error code otherwise.
- */
 esp_err_t microphone_init(void)
 {
     i2s_config_t i2s_config = {
@@ -55,13 +50,6 @@ esp_err_t microphone_init(void)
     return ESP_OK;
 }
 
-/**
- * Read sound amplitude from the microphone
- * 
- * @param buffer   Pointer to int16_t array for audio samples.
- * @param samples  Number of samples to read.
- * @return Number of samples actually read.
- */
 size_t microphone_read(int16_t *buffer, size_t samples)
 {
     // Temporary buffer for raw 32-bit I2S data

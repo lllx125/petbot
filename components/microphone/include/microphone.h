@@ -16,7 +16,7 @@ extern "C" {
 esp_err_t microphone_init(void);
 
 /**
- * @brief Read PCM samples from microphone.
+ * @brief Read sound amplitude from microphone.
  * 
  * @param buffer   Pointer to int16_t array for audio samples.
  * @param samples  Number of samples to read.
