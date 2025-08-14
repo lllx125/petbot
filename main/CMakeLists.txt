@@ -3,7 +3,6 @@ idf_component_register(
     INCLUDE_DIRS ""
     REQUIRES 
         camera
-        esp32-camera
         imu
         wifi
         arduino
