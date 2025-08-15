@@ -3,9 +3,13 @@ idf_component_register(
     INCLUDE_DIRS ""
     REQUIRES 
         camera
+        microphone
         imu
         wifi
         arduino
         nvs_flash
         freertos
+        driver
+        speaker
+        speaker driver
 )
