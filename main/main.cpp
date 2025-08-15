@@ -99,24 +99,48 @@ for camera
 /*
 for microphone
 */
+// #include <stdio.h>
+// #include "microphone.h"
+// #include "esp_log.h"
+
+// extern "C" void app_main(void)
+// {
+//     esp_err_t ret = microphone_init();
+//     if (ret != ESP_OK) {
+//         ESP_LOGE("MAIN", "Microphone init failed: %s", esp_err_to_name(ret));
+//         return;
+//     }
+
+//     int16_t buffer[256];
+
+//     while (1) {
+//         size_t samples = microphone_read(buffer, 256);
+//         for (size_t i = 0; i < samples; i++) {
+//             printf("%d\n", buffer[i]); // One value per line
+//         }
+//     }
+// }
+
+/*
+for battery
+*/
+
+#include "battery.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "battery.h"
 #include <stdio.h>
-#include "microphone.h"
-#include "esp_log.h"
 
-extern "C" void app_main(void)
-{
-    esp_err_t ret = microphone_init();
-    if (ret != ESP_OK) {
-        ESP_LOGE("MAIN", "Microphone init failed: %s", esp_err_to_name(ret));
-        return;
-    }
 
-    int16_t buffer[256];
+extern "C" void app_main(void) {
+    // Use GPIO34 for battery
+    battery_init(GPIO_NUM_2);
 
-    while (1) {
-        size_t samples = microphone_read(buffer, 256);
-        for (size_t i = 0; i < samples; i++) {
-            printf("%d\n", buffer[i]); // One value per line
-        }
+    while(1) {
+        float voltage = battery_get_voltage();
+        int percent = battery_get_percentage();
+        printf("Battery: %.2f V (%d%%)\n", voltage, percent);
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
+
