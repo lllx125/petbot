@@ -125,22 +125,24 @@ for microphone
 for battery
 */
 
-#include "battery.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "battery.h"
 #include <stdio.h>
+#include "battery.h"
+#include "driver/adc.h"
+extern "C" {
+    #include "freertos/FreeRTOS.h"
+    #include "freertos/task.h"
+}
 
+extern "C" void app_main(void)
+{
+    battery_init(ADC1_CHANNEL_1);
 
-extern "C" void app_main(void) {
-    // Use GPIO34 for battery
-    battery_init(GPIO_NUM_2);
+    while (1) {
+        float voltage = battery_read_voltage();
+        float percent = battery_read_percentage();
 
-    while(1) {
-        float voltage = battery_get_voltage();
-        int percent = battery_get_percentage();
-        printf("Battery: %.2f V (%d%%)\n", voltage, percent);
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        printf("Battery Voltage: %.2f V, Percentage: %.1f%%\n", voltage, percent);
+        vTaskDelay(pdMS_TO_TICKS(2000));
     }
 }
 

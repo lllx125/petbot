@@ -1,63 +1,87 @@
 #include "battery.h"
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
-#include "esp_err.h"
+#include "esp_log.h"
 
-#define DEFAULT_VREF 1100    // mV
-#define NO_OF_SAMPLES 64
-#define VOLTAGE_DIVIDER 2.0f  // Adjust if you use a different resistor divider
+#define TAG "BATTERY"
 
-static esp_adc_cal_characteristics_t adc_chars;
-static adc1_channel_t adc_channel;
+// LiPo battery limits (in volts)
+#define BATTERY_MIN_VOLTAGE 3.0f //Voltage treated as 0%
+#define BATTERY_MAX_VOLTAGE 4.2f //Voltage treated as 100%
 
-static int gpio_to_adc_channel(gpio_num_t gpio) {
-    // Map GPIO to ADC1 channel for ESP32-S3
-    switch(gpio) {
-        case GPIO_NUM_1: return ADC1_CHANNEL_0;
-        case GPIO_NUM_2: return ADC1_CHANNEL_1;
-        case GPIO_NUM_3: return ADC1_CHANNEL_2;
-        case GPIO_NUM_4: return ADC1_CHANNEL_3;
-        case GPIO_NUM_5: return ADC1_CHANNEL_4;
-        case GPIO_NUM_6: return ADC1_CHANNEL_5;
-        case GPIO_NUM_34: return ADC1_CHANNEL_6;  
-        case GPIO_NUM_35: return ADC1_CHANNEL_7;
-        default: return -1; // Invalid / unsupported
-    }
-}
+// Voltage divider factor (two 10k resistors -> measured voltage is half)
+#define VOLTAGE_DIVIDER_RATIO 2.0f //x2 for voltage divider
 
-esp_err_t battery_init(gpio_num_t gpio_num) {
-    int channel = gpio_to_adc_channel(gpio_num);
-    if (channel < 0) return ESP_ERR_INVALID_ARG;
+// ADC config
+#define ADC_WIDTH ADC_WIDTH_BIT_12 //ADC resolution: 12 bits (0..4095)
+#define ADC_ATTEN ADC_ATTEN_DB_11 // 0-3.9V approx range
 
-    adc_channel = (adc1_channel_t)channel;
+static adc1_channel_t battery_adc_channel;           // <-- same type
+static esp_adc_cal_characteristics_t adc_chars; //calibration data for raw->mV conversion
 
-    adc1_config_width(ADC_WIDTH_BIT_12);
-    adc1_config_channel_atten(adc_channel, ADC_ATTEN_DB_11);
+/**
+ * @brief Initialize the battery ADC
+ * 
+ * This function configures the ADC channel for battery voltage measurement.
+ * It sets the ADC width and attenuation, and characterizes the ADC for voltage readings.
+ * 
+ * @param adc_channel The ADC channel connected to the voltage divider
+ * @return esp_err_t ESP_OK on success
+ */
+esp_err_t battery_init(adc1_channel_t adc_channel)   // <-- adc1_channel_t, not adc_channel_t
+{
+    battery_adc_channel = adc_channel;
 
-    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11,
-                             ADC_WIDTH_BIT_12, DEFAULT_VREF, &adc_chars);
+    // Configure ADC width and channel
+    adc1_config_width(ADC_WIDTH);
+    adc1_config_channel_atten(battery_adc_channel, ADC_ATTEN);
 
+    // Characterize ADC
+    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN, ADC_WIDTH, 1100, &adc_chars);
+
+    ESP_LOGI(TAG, "Battery ADC initialized on channel %d", adc_channel);
     return ESP_OK;
 }
 
-float battery_get_voltage(void) {
-    uint32_t adc_reading = 0;
-    for (int i = 0; i < NO_OF_SAMPLES; i++) {
-        adc_reading += adc1_get_raw(adc_channel);
-    }
-    adc_reading /= NO_OF_SAMPLES;
+/**
+ * @brief Read the battery voltage in volts
+ * 
+ * This function reads the raw ADC value, converts it to millivolts,
+ * and compensates for the voltage divider to return the actual battery voltage.
+ * 
+ * @return float actual voltage value
+ */
+float battery_read_voltage(void)
+{
+    uint32_t raw = adc1_get_raw(battery_adc_channel);
+    printf("Raw ADC value: %ld\n", raw); // Debugging line
+    uint32_t voltage_mv = esp_adc_cal_raw_to_voltage(raw, &adc_chars);
 
-    uint32_t voltage_mv = esp_adc_cal_raw_to_voltage(adc_reading, &adc_chars);
+    // Compensate for voltage divider
+    float actual_voltage = (voltage_mv / 1000.0f) * VOLTAGE_DIVIDER_RATIO;
 
-    // Apply voltage divider factor
-    return (voltage_mv / 1000.0f) * VOLTAGE_DIVIDER;
+    return actual_voltage;
 }
 
-int battery_get_percentage(void) {
-    float voltage = battery_get_voltage();
+/**
+ * @brief Read the battery percentage (0–100%)
+ * 
+ * This function calculates the battery percentage based on the voltage.
+ * It clamps the voltage to the defined min and max limits before calculating the percentage.
+ * 
+ * @return float Battery percentage
+ */
+float battery_read_percentage(void)
+{
+    float voltage = battery_read_voltage();
 
-    if (voltage >= 4.20f) return 100;
-    if (voltage <= 3.00f) return 0;
+    // Clamp voltage between min and max
+    if (voltage < BATTERY_MIN_VOLTAGE) voltage = BATTERY_MIN_VOLTAGE;
+    if (voltage > BATTERY_MAX_VOLTAGE) voltage = BATTERY_MAX_VOLTAGE;
 
-    return (int)((voltage - 3.0f) / (4.2f - 3.0f) * 100);
+    // Map to 0–100%
+    float percent = ((voltage - BATTERY_MIN_VOLTAGE) /
+                    (BATTERY_MAX_VOLTAGE - BATTERY_MIN_VOLTAGE)) * 100.0f;
+
+    return percent;
 }
