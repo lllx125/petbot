@@ -125,24 +125,53 @@ for microphone
 for battery
 */
 
+// #include <stdio.h>
+// #include "battery.h"
+// #include "driver/adc.h"
+// extern "C" {
+//     #include "freertos/FreeRTOS.h"
+//     #include "freertos/task.h"
+// }
+
+// extern "C" void app_main(void)
+// {
+//     battery_init(ADC1_CHANNEL_1);
+
+//     while (1) {
+//         float voltage = battery_read_voltage();
+//         float percent = battery_read_percentage();
+
+//         printf("Battery Voltage: %.2f V, Percentage: %.1f%%\n", voltage, percent);
+//         vTaskDelay(pdMS_TO_TICKS(2000));
+//     }
+// }
+
+/*
+for pressure sensor
+*/
 #include <stdio.h>
-#include "battery.h"
-#include "driver/adc.h"
-extern "C" {
-    #include "freertos/FreeRTOS.h"
-    #include "freertos/task.h"
-}
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_log.h"
+#include "pressure_sensor.h"
+
+static const char *TAG = "APP_MAIN";
 
 extern "C" void app_main(void)
 {
-    battery_init(ADC1_CHANNEL_1);
+    esp_err_t ret = pressure_sensor_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize pressure sensor");
+        return;
+    }
 
     while (1) {
-        float voltage = battery_read_voltage();
-        float percent = battery_read_percentage();
-
-        printf("Battery Voltage: %.2f V, Percentage: %.1f%%\n", voltage, percent);
-        vTaskDelay(pdMS_TO_TICKS(2000));
+        uint32_t raw_value = 0;
+        if (pressure_sensor_read_raw(&raw_value) == ESP_OK) {
+            ESP_LOGI(TAG, "Pressure sensor value: %lu", raw_value);
+        } else {
+            ESP_LOGE(TAG, "Failed to read pressure sensor value");
+        }
+        vTaskDelay(pdMS_TO_TICKS(1000)); // wait 1 second
     }
 }
-
